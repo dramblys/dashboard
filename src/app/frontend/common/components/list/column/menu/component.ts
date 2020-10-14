@@ -130,4 +130,8 @@ export class MenuComponent implements ActionColumn {
   onDelete(): void {
     this.verber_.showDeleteDialog(this.typeMeta.kind, this.typeMeta, this.objectMeta);
   }
+
+  onRestart(): void {
+    this.verber_.showRestartDialog(this.typeMeta.kind, this.typeMeta, this.objectMeta);
+  }
 }
