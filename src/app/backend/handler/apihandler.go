@@ -68,6 +68,7 @@ import (
 	"github.com/kubernetes/dashboard/src/app/backend/resource/serviceaccount"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/statefulset"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/storageclass"
+	"github.com/kubernetes/dashboard/src/app/backend/rollout"
 	"github.com/kubernetes/dashboard/src/app/backend/scaling"
 	"github.com/kubernetes/dashboard/src/app/backend/settings"
 	settingsApi "github.com/kubernetes/dashboard/src/app/backend/settings/api"
@@ -273,6 +274,11 @@ func CreateHTTPAPIHandler(iManager integration.IntegrationManager, cManager clie
 		apiV1Ws.GET("/deployment/{namespace}/{deployment}/newreplicaset").
 			To(apiHandler.handleGetDeploymentNewReplicaSet).
 			Writes(replicaset.ReplicaSet{}))
+
+	apiV1Ws.Route(
+		apiV1Ws.PATCH("/rollout/restart/{kind}/{namespace}/{name}/").
+			To(apiHandler.handleRestartResource).
+			Writes(rollout.RestartResult{}))
 
 	apiV1Ws.Route(
 		apiV1Ws.PUT("/scale/{kind}/{namespace}/{name}/").
@@ -1204,6 +1210,33 @@ func (apiHandler *APIHandler) handleScaleResource(request *restful.Request, resp
 		return
 	}
 	response.WriteHeaderAndEntity(http.StatusOK, replicaCountSpec)
+}
+
+func (apiHandler *APIHandler) handleRestartResource(request *restful.Request, response *restful.Response) {
+	k8sClient, err := apiHandler.cManager.Client(request)
+	if err != nil {
+		errors.HandleInternalError(response, err)
+		return
+	}
+
+	kind := request.PathParameter("kind")
+	namespace := request.PathParameter("namespace")
+	name := request.PathParameter("name")
+
+	switch kind {
+	case "deployment":
+		patchedDeployment, err := rollout.RestartDeployment(k8sClient, namespace, name)
+		if err != nil {
+			errors.HandleInternalError(response, err)
+			return
+		}
+	//TODO daemonset
+	//TODO statefulset
+		response.WriteHeaderAndEntity(http.StatusOK, &rollout.RestartResult{Result: patchedDeployment})
+	default:
+		response.AddHeader("Content-Type", "text/plain")
+		response.WriteErrorString(404, "Unknown resource kind provided"+"\n")
+	}
 }
 
 func (apiHandler *APIHandler) handleGetReplicaCount(request *restful.Request, response *restful.Response) {
