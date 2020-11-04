@@ -74,12 +74,12 @@ export class VerberService {
       .open(RestartResourceDialog, dialogConfig)
       .afterClosed()
       .pipe(filter(result => result))
-      //TODO: BE restart action
-      // .pipe(
-      //   switchMap(result => {
-      //   })
-      // )
-      .subscribe(_ => this.onRestart.emit(true), this.handleErrorResponse_.bind(this));
+      .pipe(
+        switchMap(() => {
+          const url = `rollout/restart/${typeMeta.kind}/${objectMeta.namespace}/${objectMeta.name}/`;
+          return this.http_.patch(url);
+        }))
+      .subscribe(() => this.onRestart.emit(true), this.handleErrorResponse_.bind(this));
   }
 
   showScaleDialog(displayName: string, typeMeta: TypeMeta, objectMeta: ObjectMeta): void {
